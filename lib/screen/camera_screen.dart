@@ -14,18 +14,18 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen> {
-  late CameraController _controller;
-  late Future<void> _initializeControllerFuture;
+  CameraController? _controller;
+  Future<void>? _initializeControllerFuture;
   int selectCamera = 0;
   bool isRecording = false;
-  late final videoPath;
+  XFile? videoPath;
 
   initializeCamera(int cameraIndex) async {
     _controller = CameraController(
       widget.camera[cameraIndex],
       ResolutionPreset.medium,
     );
-    _initializeControllerFuture = _controller.initialize();
+    _initializeControllerFuture = _controller?.initialize();
   }
 
   @override
@@ -36,7 +36,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -59,13 +59,13 @@ class _CameraScreenState extends State<CameraScreen> {
   _onCapture() async {
     try {
       await _initializeControllerFuture;
-      final imgPath = await _controller.takePicture();
-      await _controller.takePicture().then((value) {
+      final imgPath = await _controller?.takePicture();
+      await _controller?.takePicture().then((value) {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => PerviewScreen(
-              imgPath: imgPath.path,
+              imgPath: imgPath!.path,
             ),
           ),
         );
@@ -79,27 +79,71 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
-  void _startRecording() async {
-    // ignore: await_only_futures
-    await _controller.startVideoRecording();
-    setState(() {
-      isRecording = true;
+  void onVideoRecordButtonPressed() {
+    startVideoRecording().then((_) {
+      if (mounted) {
+        setState(() {});
+      }
     });
   }
 
-  void _stopRecording() async {
-    setState(() {
-      isRecording = false;
-    });
-    // ignore: use_build_context_synchronously
-    await _controller.stopVideoRecording().then(
-          (value) => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PerviewVideoScreen(videoPath: videoPath),
+  void onStopButtonPressed() {
+    stopVideoRecording().then((XFile? file) {
+      if (mounted) {
+        setState(() {});
+      }
+      if (file != null) {
+        // showInSnackBar('Video recorded to ${file.path}');
+        videoPath = file;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PerviewVideoScreen(
+              videoPath: videoPath,
             ),
           ),
         );
+      }
+    });
+  }
+
+  Future<void> startVideoRecording() async {
+    final CameraController? cameraController = _controller;
+
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      // showInSnackBar('Error: select a camera first.');
+      return;
+    }
+
+    if (cameraController.value.isRecordingVideo) {
+      // A recording is already started, do nothing.
+      return;
+    }
+
+    try {
+      await cameraController.startVideoRecording();
+    } on CameraException catch (e) {
+      // _showCameraException(e);
+      debugPrint(e.toString());
+      return;
+    }
+  }
+
+  Future<XFile?> stopVideoRecording() async {
+    final CameraController? cameraController = _controller;
+
+    if (cameraController == null || !cameraController.value.isRecordingVideo) {
+      return null;
+    }
+
+    try {
+      return cameraController.stopVideoRecording();
+    } on CameraException catch (e) {
+      // _showCameraException(e);
+      debugPrint(e.toString());
+      return null;
+    }
   }
 
   late Widget cameraState;
@@ -117,9 +161,9 @@ class _CameraScreenState extends State<CameraScreen> {
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.done) {
                   return AspectRatio(
-                      aspectRatio: _controller.value.aspectRatio,
+                      aspectRatio: _controller!.value.aspectRatio,
                       child: CameraPreview(
-                        _controller,
+                        _controller!,
                       ));
                 } else {
                   return const Center(
@@ -160,8 +204,8 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                   //Capture Button
                   GestureDetector(
-                    onLongPress: _startRecording,
-                    onLongPressUp: _stopRecording,
+                    onLongPress: startVideoRecording,
+                    onDoubleTap: stopVideoRecording,
                     onTap: (() {
                       if (!isRecording) {
                         _onCapture();

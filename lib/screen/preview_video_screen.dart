@@ -5,7 +5,8 @@ import 'package:video_player/video_player.dart';
 class PerviewVideoScreen extends StatefulWidget {
   const PerviewVideoScreen({required this.videoPath, super.key});
 
-  final File videoPath;
+  // ignore: prefer_typing_uninitialized_variables
+  final videoPath;
 
   @override
   State<PerviewVideoScreen> createState() => _PerviewVideoScreenState();
@@ -17,7 +18,7 @@ class _PerviewVideoScreenState extends State<PerviewVideoScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.file(File(widget.videoPath.toString()))
+    _controller = VideoPlayerController.file(File(widget.videoPath))
       ..initialize().then((value) {
         setState(() {});
       });
